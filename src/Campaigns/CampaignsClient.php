@@ -3,6 +3,8 @@
 namespace ArrowSphere\PublicApiClient\Campaigns;
 
 use ArrowSphere\PublicApiClient\AbstractClient;
+use ArrowSphere\PublicApiClient\Campaigns\Entities\Asset\Asset;
+use ArrowSphere\PublicApiClient\Campaigns\Entities\Asset\AssetUploadUrl;
 use ArrowSphere\PublicApiClient\Campaigns\Entities\Campaign;
 use ArrowSphere\PublicApiClient\Exception\EntityValidationException;
 use ArrowSphere\PublicApiClient\Exception\NotFoundException;
@@ -27,8 +29,8 @@ class CampaignsClient extends AbstractClient
      *
      * @return Campaign|null
      *
-     * @throws EntityValidationException
      * @throws GuzzleException
+     * @throws EntityValidationException
      * @throws NotFoundException
      * @throws PublicApiClientException
      */
@@ -45,22 +47,25 @@ class CampaignsClient extends AbstractClient
     }
 
     /**
-     * Get a single campaign.
+     * Get a single active campaign
      *
-     * @param string $reference The reference of the campaign
-     *
-     * @return string
+     * @return Campaign|null
      *
      * @throws GuzzleException
+     * @throws EntityValidationException
      * @throws NotFoundException
      * @throws PublicApiClientException
      */
-    public function getCampaignRaw(string $reference): string
+    public function getActiveCampaign(): ?Campaign
     {
-        $reference = urlencode($reference);
-        $this->path = self::FIND_PATH . "/$reference";
+        $response = $this->getActiveCampaignRaw();
+        $data = $this->decodeResponse($response);
+        $result = null;
+        if ($data['data']) {
+            $result = new Campaign($data['data']);
+        }
 
-        return $this->get();
+        return $result;
     }
 
     /**
@@ -118,6 +123,39 @@ class CampaignsClient extends AbstractClient
     }
 
     /**
+     * Get a single campaign.
+     *
+     * @param string $reference The reference of the campaign
+     *
+     * @return string
+     *
+     * @throws GuzzleException
+     * @throws NotFoundException
+     * @throws PublicApiClientException
+     */
+    public function getCampaignRaw(string $reference): string
+    {
+        $reference = urlencode($reference);
+        $this->path = self::FIND_PATH . "/$reference";
+
+        return $this->get();
+    }
+
+    /**
+     * @return string
+     *
+     * @throws GuzzleException
+     * @throws NotFoundException
+     * @throws PublicApiClientException
+     */
+    public function getActiveCampaignRaw(): string
+    {
+        $this->path = self::FIND_PATH . "/active";
+
+        return $this->get();
+    }
+
+    /**
      * @param string $reference
      *
      * @return string
@@ -126,7 +164,7 @@ class CampaignsClient extends AbstractClient
      * @throws NotFoundException
      * @throws PublicApiClientException
      */
-    public function getCampaignAssets(string $reference): string
+    public function getCampaignAssetsRaw(string $reference): string
     {
         $reference = urlencode($reference);
         $this->path = self::FIND_PATH . "/$reference/assets";
@@ -137,13 +175,33 @@ class CampaignsClient extends AbstractClient
     /**
      * @param string $reference
      *
+     * @return Asset[]
+     *
+     * @throws GuzzleException
+     * @throws NotFoundException
+     * @throws PublicApiClientException
+     */
+    public function getCampaignAssets(string $reference): array
+    {
+        $rawResponse = $this->getCampaignAssetsRaw($reference);
+
+        $data = $this->decodeResponse($rawResponse);
+
+        return array_map(static function (array $asset) {
+            return new Asset($asset);
+        }, $data['data']['assets']);
+    }
+
+    /**
+     * @param string $reference
+     *
      * @return string
      *
      * @throws GuzzleException
      * @throws NotFoundException
      * @throws PublicApiClientException
      */
-    public function getCampaignAssetsUploadUrl(string $reference): string
+    public function getCampaignAssetsUploadUrlRaw(string $reference): string
     {
         $reference = urlencode($reference);
         $this->path = self::FIND_PATH . "/$reference/assets/upload";
@@ -152,13 +210,33 @@ class CampaignsClient extends AbstractClient
     }
 
     /**
+     * @param string $reference
+     *
+     * @return AssetUploadUrl[]
+     *
+     * @throws GuzzleException
+     * @throws NotFoundException
+     * @throws PublicApiClientException
+     */
+    public function getCampaignAssetsUploadUrl(string $reference): array
+    {
+        $rawResponse = $this->getCampaignAssetsUploadUrlRaw($reference);
+
+        $data = $this->decodeResponse($rawResponse);
+
+        return array_map(static function (array $assetUploadUrl) {
+            return new AssetUploadUrl($assetUploadUrl);
+        }, $data['data']['assets']);
+    }
+
+    /**
      * @param array $params
      *
      * @return string
      *
+     * @throws GuzzleException
      * @throws NotFoundException
      * @throws PublicApiClientException
-     * @throws GuzzleException
      */
     public function createCampaign(array $params): string
     {
